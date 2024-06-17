@@ -1,0 +1,64 @@
+library(shiny)
+library(bslib)
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+# Load the data
+whr_2023 <- read_csv("~/100-sp24/Final_Proj/data/whr-2023.csv")
+
+# Define variables for selection
+exclude_vars <- c("Country name", "Positive affect", "Negative affect", "year")
+vars <- setdiff(names(whr_2023), exclude_vars)
+vars2 <- c("Positive affect", "Negative affect")
+
+# UI
+ui <- fluidPage(
+  theme = bs_theme(version = 5, bootswatch = "sketchy"),
+  headerPanel('World Happiness Measurement'),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput('xcol', 'Variable', vars),
+      selectInput('ycol', 'Positive or Negative', vars2),
+      sliderInput('slider', "Year of Interest", min = 2005, max = 2022, value = 2021, sep = "")
+    ),
+    mainPanel(
+      plotOutput('plot1')
+    )
+  )
+)
+
+# Server
+server <- function(input, output) {
+  selectedData <- reactive({
+    req(input$xcol, input$ycol, input$slider)  # Ensure inputs are available
+    
+    # Filter the data based on the selected year
+    filtered_data <- whr_2023 %>%
+      filter(year == input$slider) %>%
+      select(`Country name`, all_of(input$xcol), all_of(input$ycol))
+    
+    return(filtered_data)
+  })
+  
+  output$plot1 <- renderPlot({
+    data <- selectedData()
+    
+    # Check if data is empty
+    if (nrow(data) == 0) {
+      return(NULL)
+    }
+    
+    ggplot(data, aes(x = .data[[input$xcol]], y = .data[[input$ycol]])) +
+      geom_point(size = 4) + geom_smooth(color = "#375a7f") +
+      labs(
+        title = paste('Scatter plot of', input$xcol, 'vs', input$ycol, 'in', input$slider),
+        x = input$xcol,
+        y = input$ycol
+      ) +
+      theme_minimal()+
+      theme(legend.position = "none")
+  })
+}
+
+shinyApp(ui = ui, server = server)
